@@ -1,0 +1,97 @@
+{
+  "id": "argusErrors00001",
+  "name": "ARGUS · error handler",
+  "description": "Error workflow for the ARGUS pipeline: logs every failed execution (workflow, execution id, last node, message) to Postgres argus_pipeline_errors.",
+  "nodes": [
+    {
+      "id": "d2bc17a0-93dc-45c5-8102-3017d8a67ea7",
+      "name": "On Pipeline Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2464045d-4b8b-4cc2-b3d9-f4f4bcb3ae94",
+      "name": "Error Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// One row per failed execution of a workflow that points here as its error workflow.\nreturn $input.all().map((i) => {\n  const e = i.json.execution || {}, w = i.json.workflow || {};\n  const msg = (e.error && (e.error.message || e.error.description)) || (i.json.trigger && i.json.trigger.error && i.json.trigger.error.message) || 'unknown error';\n  return { json: {\n    workflow_id: w.id || null, workflow_name: w.name || null,\n    execution_id: e.id != null ? String(e.id) : null, mode: e.mode || null,\n    last_node: e.lastNodeExecuted || null, message: String(msg).slice(0, 2000),\n  } };\n});"
+      }
+    },
+    {
+      "id": "3340042e-e241-4af7-a964-471b61e0547c",
+      "name": "Save Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "argus_pipeline_errors"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "argusCredPgsql01",
+          "name": "ARGUS Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "On Pipeline Error": {
+      "main": [
+        [
+          {
+            "node": "Error Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Row": {
+      "main": [
+        [
+          {
+            "node": "Save Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

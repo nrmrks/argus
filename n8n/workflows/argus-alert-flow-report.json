@@ -1,0 +1,94 @@
+{
+  "id": "argusFlowReport1",
+  "name": "ARGUS · alert flow report",
+  "description": "Manual report over argus_alert_flow for hardware sizing: totals, suppression, LLM load, latency p95, peak per hour / 5 min, hourly series, top agents and rules. Window set in 'Report Window' (hours).",
+  "nodes": [
+    {
+      "id": "b2ee272d-f79e-401e-b274-27cf7cf9205d",
+      "name": "Run Report",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "0e0b8012-bc80-4266-bf4f-2721f0bedb6c",
+      "name": "Report Window",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "hours",
+              "name": "hours",
+              "value": 24,
+              "type": "number"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "875078a7-8876-4eef-ae5a-df383160a0f9",
+      "name": "Alert Flow Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH f AS (\n  SELECT * FROM argus_alert_flow\n  WHERE source NOT IN ('manual', 'test') AND ts > now() - make_interval(hours => $1::int)\n)\nSELECT\n  $1::int AS window_hours,\n  (SELECT to_char(min(ts) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI \"UTC\"') FROM f) AS first_event_utc,\n  (SELECT to_char(max(ts) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI \"UTC\"') FROM f) AS last_event_utc,\n  (SELECT count(*) FROM f WHERE stage = 'received') AS received,\n  (SELECT count(*) FROM f WHERE stage = 'received' AND level >= 12) AS received_level_12_plus,\n  (SELECT count(*) FROM f WHERE stage = 'suppressed') AS suppressed_repeats,\n  (SELECT count(*) FROM f WHERE stage = 'forwarded') AS forwarded_to_llm,\n  (SELECT count(*) FROM f WHERE stage = 'analyzed' AND llm_ok) AS llm_ok,\n  (SELECT count(*) FROM f WHERE stage = 'analyzed' AND NOT llm_ok) AS llm_failed,\n  (SELECT round(avg(llm_latency_s)::numeric, 1) FROM f WHERE stage = 'analyzed') AS llm_latency_avg_s,\n  (SELECT round((percentile_cont(0.95) WITHIN GROUP (ORDER BY llm_latency_s))::numeric, 1) FROM f WHERE stage = 'analyzed') AS llm_latency_p95_s,\n  (SELECT count(DISTINCT agent_name) FROM f WHERE stage = 'received') AS agents_seen,\n  (SELECT max(c) FROM (SELECT count(*) c FROM f WHERE stage = 'received' GROUP BY date_trunc('hour', ts)) x) AS peak_received_per_hour,\n  (SELECT max(c) FROM (SELECT count(*) c FROM f WHERE stage = 'forwarded' GROUP BY date_trunc('hour', ts)) x) AS peak_llm_per_hour,\n  (SELECT max(c) FROM (SELECT count(*) c FROM f WHERE stage = 'forwarded' GROUP BY to_timestamp(floor(extract(epoch FROM ts) / 300) * 300)) x) AS peak_llm_per_5min,\n  (SELECT json_agg(t ORDER BY t.hour_utc) FROM (\n     SELECT to_char(date_trunc('hour', ts AT TIME ZONE 'UTC'), 'YYYY-MM-DD HH24:00 \"UTC\"') AS hour_utc,\n       count(*) FILTER (WHERE stage = 'received') AS received,\n       count(*) FILTER (WHERE stage = 'forwarded') AS to_llm\n     FROM f GROUP BY 1) t) AS hourly,\n  (SELECT json_agg(t) FROM (\n     SELECT agent_name, count(*) FILTER (WHERE stage = 'received') AS received,\n       count(*) FILTER (WHERE stage = 'forwarded') AS to_llm\n     FROM f GROUP BY 1 ORDER BY 2 DESC LIMIT 10) t) AS top_agents,\n  (SELECT json_agg(t) FROM (\n     SELECT rule_id, max(rule_description) AS description, max(level) AS level,\n       count(*) FILTER (WHERE stage = 'received') AS received,\n       count(*) FILTER (WHERE stage = 'forwarded') AS to_llm\n     FROM f GROUP BY 1 ORDER BY 4 DESC LIMIT 10) t) AS top_rules;\n",
+        "options": {
+          "queryReplacement": "={{ $json.hours }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "argusCredPgsql01",
+          "name": "ARGUS Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run Report": {
+      "main": [
+        [
+          {
+            "node": "Report Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Window": {
+      "main": [
+        [
+          {
+            "node": "Alert Flow Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

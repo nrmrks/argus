@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-10-06T10:03:00.000+0000",
+  "rule": {
+    "level": 9,
+    "description": "Windows application error event.",
+    "id": "60602",
+    "groups": [
+      "windows",
+      "windows_application"
+    ]
+  },
+  "agent": {
+    "id": "015",
+    "name": "SRV-APP-02",
+    "ip": "10.20.1.22"
+  },
+  "location": "EventChannel",
+  "data": {
+    "win": {
+      "system": {
+        "eventID": "1000",
+        "channel": "Application",
+        "providerName": "Application Error",
+        "computer": "SRV-APP-02.corp.example"
+      },
+      "eventdata": {
+        "data": "w3wp.exe, 10.0.17763.1, ntdll.dll, 10.0.17763.5329, c0000374, 00000000000ff1c9"
+      }
+    }
+  }
+}

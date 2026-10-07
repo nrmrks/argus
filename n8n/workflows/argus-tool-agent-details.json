@@ -1,0 +1,162 @@
+{
+  "id": "argusAgentTool01",
+  "name": "ARGUS · tool · get_wazuh_agent_details",
+  "description": "Sub-workflow tool for ARGUS: authenticates to the Wazuh Server API (JWT) and returns compact agent details (OS, status, IP, groups) for one agent ID.",
+  "nodes": [
+    {
+      "id": "ad5daf3a-e295-415a-b238-692ad9e232e5",
+      "name": "When called by ARGUS",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "agent_id",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2baf9d08-3ba0-428e-b717-466e993108ed",
+      "name": "Wazuh API: Get JWT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "__WAZUH_API_URL__/security/user/authenticate?raw=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "token"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "argusCredWzApi01",
+          "name": "Wazuh API"
+        }
+      }
+    },
+    {
+      "id": "1c27785d-6121-46a1-82ff-7ddf27278606",
+      "name": "Wazuh API: Get Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "__WAZUH_API_URL__/agents",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "agents_list",
+              "value": "={{ String($('When called by ARGUS').item.json.agent_id || '').replace(/\\D/g, '').padStart(3, '0') }}"
+            },
+            {
+              "name": "select",
+              "value": "id,name,ip,registerIP,status,os.name,os.version,os.platform,version,group,lastKeepAlive,dateAdd,node_name"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ String($json.token || \"\").trim() }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "91a535bf-2d47-4c35-980b-a769956bd345",
+      "name": "Compact Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return a small, LLM-friendly object instead of the raw API envelope.\nconst r = $json;\nconst items = (r && r.data && r.data.affected_items) || [];\nif (!items.length) {\n  return { json: {\n    found: false,\n    requested_agent_id: $('When called by ARGUS').item.json.agent_id,\n    error: r.title || r.detail || r.message || 'Agent not found or Wazuh API returned no data',\n  } };\n}\nconst a = items[0];\nreturn { json: {\n  found: true,\n  id: a.id,\n  name: a.name,\n  ip: a.ip,\n  register_ip: a.registerIP,\n  status: a.status,\n  os: [a.os && a.os.name, a.os && a.os.version].filter(Boolean).join(' ') || null,\n  platform: a.os && a.os.platform || null,\n  wazuh_version: a.version,\n  groups: a.group || [],\n  last_keepalive: a.lastKeepAlive,\n  registered_at: a.dateAdd,\n  manager_node: a.node_name,\n} };"
+      }
+    }
+  ],
+  "connections": {
+    "When called by ARGUS": {
+      "main": [
+        [
+          {
+            "node": "Wazuh API: Get JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wazuh API: Get JWT": {
+      "main": [
+        [
+          {
+            "node": "Wazuh API: Get Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wazuh API: Get Agent": {
+      "main": [
+        [
+          {
+            "node": "Compact Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "argusErrors00001"
+  },
+  "pinData": {},
+  "active": false
+}

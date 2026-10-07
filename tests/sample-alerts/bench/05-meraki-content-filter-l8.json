@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-10-06T10:05:00.000+0000",
+  "rule": {
+    "level": 8,
+    "description": "Meraki: client 10.55.30.123 repeatedly blocked by content filtering (Encrypted DNS) - possible filter evasion",
+    "id": "100143",
+    "frequency": 10,
+    "groups": [
+      "meraki",
+      "content_filtering",
+      "policy_violation"
+    ]
+  },
+  "agent": {
+    "id": "000",
+    "name": "wazuh-mgr"
+  },
+  "location": "10.0.0.1",
+  "full_log": "Oct  6 10:05:00 10.0.0.1 1759745100.2 MX-HQ urls src=10.55.30.123:53122 dst=192.0.2.53:443 mac=AA:BB:CC:DD:EE:01 request: UNKNOWN https://dns.example-doh.test/dns-query category=Encrypted DNS blocked",
+  "data": {
+    "srcip": "10.55.30.123",
+    "url": "https://dns.example-doh.test/dns-query",
+    "category": "Encrypted DNS"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-10-06T10:04:00.000+0000",
+  "rule": {
+    "level": 8,
+    "description": "Meraki: configuration or VPN connectivity change - vpn_connectivity_change.",
+    "id": "100148",
+    "groups": [
+      "meraki",
+      "vpn"
+    ]
+  },
+  "agent": {
+    "id": "000",
+    "name": "wazuh-mgr"
+  },
+  "location": "10.0.0.1",
+  "full_log": "Oct  6 10:04:00 10.0.0.1 1759745040.5 MX-HQ events type=vpn_connectivity_change vpn_type='site-to-site' peer_contact='203.0.113.40:51820' peer_ident='Branch-Site-2' connectivity='false'",
+  "data": {
+    "type": "vpn_connectivity_change",
+    "peer_contact": "203.0.113.40:51820",
+    "connectivity": "false"
+  }
+}

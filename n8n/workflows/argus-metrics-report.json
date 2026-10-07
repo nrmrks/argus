@@ -1,0 +1,83 @@
+{
+  "id": "argusMetrics0001",
+  "name": "ARGUS · LLM metrics report",
+  "description": "Aggregates argus_llm_metrics per hardware/model/quant/source: latency p50/p95, TTFT, tok/s, tokens, verdicts, throughput. Run manually.",
+  "nodes": [
+    {
+      "id": "309002e7-373a-41fa-9d10-a4fdc64b88e5",
+      "name": "Run report",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2be4d797-ce8a-44f7-85fc-0f7aa455fce0",
+      "name": "All metrics",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "__METRICS_TABLE_ID__",
+          "cachedResultName": "argus_llm_metrics"
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "ee636ba3-9295-4dc5-93c2-52e898ef2462",
+      "name": "Summarize per model",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Aggregate argus_llm_metrics per (hardware, model, quant, source).\n// Per-request speed: generation_s, ttft_s, tokens_per_s (from LM Studio stats).\n// Throughput: per execution, completion tokens / wall time of the LLM step.\nconst rows = $input.all().map(i => i.json).filter(r => r.model);\nconst num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);\nconst stats = (arr) => {\n  const v = arr.map(num).filter(x => x !== null).sort((a, b) => a - b);\n  if (!v.length) return null;\n  const q = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];\n  const mean = v.reduce((a, b) => a + b, 0) / v.length;\n  const r = (x) => Math.round(x * 100) / 100;\n  return { n: v.length, mean: r(mean), p50: r(q(0.5)), p95: r(q(0.95)), min: r(v[0]), max: r(v[v.length - 1]) };\n};\n\nconst groups = {};\nfor (const r of rows) {\n  const src = String(r.source || '').startsWith('benchmark') ? r.source : r.source || 'unknown';\n  const key = [r.hardware, r.model, r.quant, src].join(' | ');\n  (groups[key] = groups[key] || []).push(r);\n}\n\nconst out = [];\nfor (const [key, g] of Object.entries(groups)) {\n  const byExec = {};\n  for (const r of g) (byExec[r.execution_id] = byExec[r.execution_id] || []).push(r);\n  const throughput = Object.values(byExec).map(e => {\n    const wall = Math.max(...e.map(r => num(r.llm_latency_s) || 0));\n    const tok = e.reduce((a, r) => a + (num(r.completion_tokens) || 0), 0);\n    return { concurrency: e.length, wall_s: wall, agg_tokens_per_s: wall ? Math.round(tok / wall * 10) / 10 : null,\n             alerts_per_hour: wall ? Math.round(e.length / wall * 3600) : null };\n  });\n  const verdicts = {};\n  for (const r of g) verdicts[r.verdict || 'none'] = (verdicts[r.verdict || 'none'] || 0) + 1;\n  const ok = g.filter(r => r.success).length;\n  out.push({ json: {\n    group: key,\n    hardware: g[0].hardware, model: g[0].model, quant: g[0].quant, arch: g[0].model_arch,\n    context_length: g[0].context_length, source: g[0].source,\n    runs: g.length,\n    success_rate: Math.round(ok / g.length * 100) / 100,\n    sections_ok_rate: Math.round(g.filter(r => r.sections_ok).length / g.length * 100) / 100,\n    verdicts,\n    injection_cases: g.filter(r => r.injection_suspected).map(r => ({ case: r.bench_case, verdict: r.verdict })),\n    generation_s: stats(g.map(r => r.generation_s)),\n    ttft_s: stats(g.map(r => r.ttft_s)),\n    tokens_per_s_per_stream: stats(g.map(r => r.tokens_per_s)),\n    prompt_tokens: stats(g.map(r => r.prompt_tokens)),\n    completion_tokens: stats(g.map(r => r.completion_tokens)),\n    reasoning_tokens: stats(g.map(r => r.reasoning_tokens)),\n    pipeline_latency_s: stats(g.map(r => r.pipeline_latency_s)),\n    throughput_by_execution: throughput,\n  } });\n}\nreturn out.length ? out : [{ json: { note: 'no metrics yet' } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Run report": {
+      "main": [
+        [
+          {
+            "node": "All metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All metrics": {
+      "main": [
+        [
+          {
+            "node": "Summarize per model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

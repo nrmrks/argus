@@ -1,0 +1,57 @@
+{
+  "id": "argusSetupDb0001",
+  "name": "ARGUS · setup db",
+  "description": "One-off: creates the argus_incidents journal table (idempotent).",
+  "nodes": [
+    {
+      "id": "9251a8bb-2a90-4d82-99f5-b4f73ef3ed13",
+      "name": "Run setup",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "7a6b55fc-1af0-4ad0-8725-d5bf9002f773",
+      "name": "Create argus_incidents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS argus_incidents (\n  id BIGSERIAL PRIMARY KEY,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  source TEXT,\n  path TEXT,\n  execution_id TEXT,\n  rule_id TEXT,\n  rule_level INT,\n  severity TEXT,\n  rule_description TEXT,\n  agent_id TEXT,\n  agent_name TEXT,\n  src_ip TEXT,\n  verdict TEXT,\n  model TEXT,\n  injection_suspected BOOLEAN,\n  tool_calls INT,\n  report TEXT\n);\nCREATE INDEX IF NOT EXISTS argus_incidents_agent_idx ON argus_incidents (agent_name, created_at DESC);\nCREATE INDEX IF NOT EXISTS argus_incidents_srcip_idx ON argus_incidents (src_ip, created_at DESC);\n\n-- Inbound alert flow for volume sizing: one row per alert per stage\n-- (received -> suppressed | forwarded -> analyzed by the LLM).\nCREATE TABLE IF NOT EXISTS argus_alert_flow (\n  id BIGSERIAL PRIMARY KEY,\n  ts TIMESTAMPTZ NOT NULL DEFAULT now(),\n  execution_id TEXT,\n  source TEXT,\n  stage TEXT NOT NULL,\n  rule_id TEXT,\n  level INT,\n  severity TEXT,\n  agent_id TEXT,\n  agent_name TEXT,\n  src_ip TEXT,\n  rule_groups TEXT,\n  llm_ok BOOLEAN,\n  verdict TEXT,\n  llm_latency_s REAL\n);\nALTER TABLE argus_alert_flow ADD COLUMN IF NOT EXISTS rule_description TEXT;\nCREATE INDEX IF NOT EXISTS argus_alert_flow_ts_idx ON argus_alert_flow (ts DESC, stage);\nCREATE INDEX IF NOT EXISTS argus_alert_flow_agent_idx ON argus_alert_flow (agent_name, ts DESC);\nCREATE INDEX IF NOT EXISTS argus_alert_flow_rule_idx ON argus_alert_flow (rule_id, ts DESC);\n\nDROP VIEW IF EXISTS argus_flow_hourly;\nCREATE VIEW argus_flow_hourly AS\nSELECT date_trunc('hour', ts) AS hour,\n  source,\n  count(*) FILTER (WHERE stage = 'received') AS received,\n  count(*) FILTER (WHERE stage = 'received' AND level >= 7) AS level_ge_7,\n  count(*) FILTER (WHERE stage = 'received' AND level >= 12) AS level_ge_12,\n  count(*) FILTER (WHERE stage = 'suppressed') AS suppressed,\n  count(*) FILTER (WHERE stage = 'forwarded') AS forwarded_to_llm,\n  count(*) FILTER (WHERE stage = 'analyzed' AND llm_ok) AS llm_ok,\n  count(*) FILTER (WHERE stage = 'analyzed' AND NOT llm_ok) AS llm_failed,\n  round(avg(llm_latency_s) FILTER (WHERE stage = 'analyzed')::numeric, 1) AS avg_llm_s,\n  count(DISTINCT agent_name) FILTER (WHERE stage = 'received') AS agents\nFROM argus_alert_flow\nGROUP BY 1, 2;\n\n-- Failed pipeline executions (written by the error-handler workflow).\nCREATE TABLE IF NOT EXISTS argus_pipeline_errors (\n  id BIGSERIAL PRIMARY KEY,\n  ts TIMESTAMPTZ NOT NULL DEFAULT now(),\n  workflow_id TEXT,\n  workflow_name TEXT,\n  execution_id TEXT,\n  mode TEXT,\n  last_node TEXT,\n  message TEXT\n);\n\nSELECT (SELECT count(*) FROM argus_incidents) AS incidents, (SELECT count(*) FROM argus_alert_flow) AS flow_rows, (SELECT count(*) FROM argus_pipeline_errors) AS errors;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "argusCredPgsql01",
+          "name": "ARGUS Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run setup": {
+      "main": [
+        [
+          {
+            "node": "Create argus_incidents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

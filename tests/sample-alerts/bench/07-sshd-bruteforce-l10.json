@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-10-06T11:30:12.345+0000",
+  "rule": {
+    "level": 10,
+    "description": "sshd: brute force trying to get access to the system. Non existent user.",
+    "id": "5712",
+    "mitre": {
+      "id": [
+        "T1110"
+      ],
+      "tactic": [
+        "Credential Access"
+      ],
+      "technique": [
+        "Brute Force"
+      ]
+    },
+    "frequency": 8,
+    "firedtimes": 3,
+    "groups": [
+      "syslog",
+      "sshd",
+      "authentication_failures"
+    ]
+  },
+  "agent": {
+    "id": "003",
+    "name": "web-srv-01",
+    "ip": "10.20.1.25"
+  },
+  "manager": {
+    "name": "wazuh-manager"
+  },
+  "id": "1759750212.123456",
+  "full_log": "Oct  6 11:30:12 web-srv-01 sshd[20431]: Invalid user oracle from 203.0.113.77 port 51122",
+  "predecoder": {
+    "program_name": "sshd",
+    "timestamp": "Oct  6 11:30:12",
+    "hostname": "web-srv-01"
+  },
+  "decoder": {
+    "parent": "sshd",
+    "name": "sshd"
+  },
+  "data": {
+    "srcip": "203.0.113.77",
+    "srcport": "51122",
+    "srcuser": "oracle"
+  },
+  "location": "/var/log/auth.log"
+}

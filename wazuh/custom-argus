@@ -1,0 +1,16 @@
+#!/bin/sh
+# Standard Wazuh integration launcher: runs <this name>.py with Wazuh's Python.
+WPYTHON_BIN="framework/python/bin/python3"
+
+SCRIPT_PATH_NAME="$0"
+DIR_NAME="$(cd "$(dirname "${SCRIPT_PATH_NAME}")"; pwd)"
+SCRIPT_NAME="$(basename "${SCRIPT_PATH_NAME}")"
+
+case ${DIR_NAME} in
+    */integrations)
+        WAZUH_PATH=$(cd "${DIR_NAME}/.."; pwd)
+        PYTHON_SCRIPT="${DIR_NAME}/${SCRIPT_NAME}.py"
+    ;;
+esac
+
+"${WAZUH_PATH}/${WPYTHON_BIN}" "${PYTHON_SCRIPT}" "$@"

@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-10-06T10:02:00.000+0000",
+  "rule": {
+    "level": 10,
+    "description": "Multiple Windows Logon Failures",
+    "id": "60204",
+    "frequency": 8,
+    "groups": [
+      "windows",
+      "windows_security",
+      "authentication_failures"
+    ],
+    "mitre": {
+      "id": [
+        "T1110"
+      ],
+      "tactic": [
+        "Credential Access"
+      ],
+      "technique": [
+        "Brute Force"
+      ]
+    }
+  },
+  "agent": {
+    "id": "012",
+    "name": "WS-FIN-07",
+    "ip": "10.20.5.47"
+  },
+  "location": "EventChannel",
+  "data": {
+    "win": {
+      "system": {
+        "eventID": "4625",
+        "channel": "Security",
+        "computer": "WS-FIN-07.corp.example"
+      },
+      "eventdata": {
+        "targetUserName": "j.smith",
+        "targetDomainName": "CORP",
+        "ipAddress": "10.20.9.13",
+        "logonType": "3",
+        "status": "0xc000006d",
+        "subStatus": "0xc000006a",
+        "failureReason": "%%2313"
+      }
+    }
+  }
+}

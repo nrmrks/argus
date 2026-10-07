@@ -1,0 +1,11 @@
+# secrets and generated files
+.env
+.env.*
+!.env.example
+build/
+
+# local noise
+.DS_Store
+__pycache__/
+*.pyc
+*.bak

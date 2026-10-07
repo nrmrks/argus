@@ -1,0 +1,47 @@
+# ARGUS stack: n8n + Postgres. Values come from .env in this directory.
+#   docker compose up -d                 # n8n + bundled Postgres
+#   docker compose up -d --no-deps n8n   # n8n only (external Postgres in .env)
+# The LLM server (LM Studio, vLLM, ...) and Wazuh run elsewhere.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: argus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - argus_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:2.42.3
+    container_name: argus-n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - WEBHOOK_URL=${N8N_PUBLIC_URL}/
+      - N8N_EDITOR_BASE_URL=${N8N_PUBLIC_URL}/
+      - GENERIC_TIMEZONE=${TZ:-UTC}
+      - TZ=${TZ:-UTC}
+      # Plain HTTP inside a trusted network only. Put n8n behind HTTPS
+      # (reverse proxy) for anything else and remove this line.
+      - N8N_SECURE_COOKIE=false
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=336
+    volumes:
+      - argus_n8n:/home/node/.n8n
+    mem_limit: 4g
+
+volumes:
+  argus_pg:
+  argus_n8n:
