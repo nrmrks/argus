@@ -1,7 +1,7 @@
 {
   "id": "argusSetupDb0001",
   "name": "ARGUS · setup db",
-  "description": "One-off: creates the argus_incidents journal table (idempotent).",
+  "description": "One-off: creates the ARGUS tables and the argus_flow_hourly view (idempotent). Same SQL as sql/schema.sql.",
   "nodes": [
     {
       "id": "9251a8bb-2a90-4d82-99f5-b4f73ef3ed13",

@@ -1,4 +1,4 @@
-# ARGUS — AI SOC analyst for Wazuh
+# ARGUS: AI SOC analyst for Wazuh
 
 ARGUS triages Wazuh alerts with a **local** LLM. Every alert at or above a level
 threshold gets a plain-text analyst report: verdict, severity, affected host,
@@ -53,7 +53,7 @@ Wazuh manager ──(integration custom-argus, X-Wazuh-Secret)──► n8n webh
 ## Quick start
 
 ```bash
-git clone <this repo> argus && cd argus
+git clone https://github.com/nrmrks/argus.git && cd argus
 cp .env.example .env && chmod 600 .env   # fill in hosts, users, passwords
 docker compose up -d                     # n8n + Postgres
 scripts/install.sh                       # credentials, workflows, tables, publish
@@ -91,3 +91,7 @@ Full guide: **[docs/INSTALL.md](docs/INSTALL.md)**.
 
 Proof of concept running against a production Wazuh. Reports are advisory:
 ARGUS recommends actions but cannot block, isolate or change anything.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

@@ -40,5 +40,6 @@ AI can do.
 
 ## Reporting a vulnerability
 
-Please do not open a public issue. Contact the maintainers privately (see the
-repository owner's profile) with steps to reproduce.
+Please don't open a public issue. Use GitHub's private vulnerability
+reporting (Security tab > Report a vulnerability) and include steps to
+reproduce.

@@ -6,7 +6,7 @@
 Writes build/argus_bench_cases.csv with columns bench_set, case_id,
 alert_json, facts. Import it in n8n (Data tables > argus_bench_cases >
 Import CSV). `facts` freezes the Wazuh enrichment so every model sees the
-same input; see docs/BENCHMARK.md.
+same input; see docs/MODELS.md.
 """
 import csv
 import glob
